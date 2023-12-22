@@ -1,0 +1,21 @@
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+SimpleMPU	KEYWORD1
+GyroData    KEYWORD1
+AccelData   KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+init KEYWORD2
+setGyroRange KEYWORD2
+getGyroRange    KEYWORD2
+calibGyro   KEYWORD2
+readGyro    KEYWORD2
+setAccelRange   KEYWORD2
+getAccelRange   KEYWORD2
+calibAccel  KEYWORD2
+readAccel   KEYWORD2
