@@ -8,7 +8,7 @@
  */
 
 // Importing required libraries
-#include <Wire.h>
+#include <Arduino.h>
 #include "SimpleMPU.h"
 
 // Constructor
@@ -42,32 +42,32 @@ void SimpleMPU::readGyro(GyroData *gyro)
 	Wire.write(MPU6050_IMU::MPU6050_RA_GYRO_XOUT_H);
 	Wire.endTransmission(false);
 	Wire.requestFrom(SimpleMPU::MPU6050_ADR, 6, true);
-	gyro->x = (Wire.read() << 8 | Wire.read()) - SimpleMPU::MPU6050_GYRO_OFF_X;
-	gyro->y = (Wire.read() << 8 | Wire.read()) - SimpleMPU::MPU6050_GYRO_OFF_Y;
-	gyro->z = (Wire.read() << 8 | Wire.read()) - SimpleMPU::MPU6050_GYRO_OFF_Z;
-	if(SimpleMPU::MPU6050_GYRO_FS_SEL == 0)
+	int16_t x = (Wire.read() << 8 | Wire.read()) - SimpleMPU::MPU6050_GYRO_OFF_X;
+	int16_t y = (Wire.read() << 8 | Wire.read()) - SimpleMPU::MPU6050_GYRO_OFF_Y;
+	int16_t z = (Wire.read() << 8 | Wire.read()) - SimpleMPU::MPU6050_GYRO_OFF_Z;
+	if (SimpleMPU::MPU6050_GYRO_FS_SEL == 0)
 	{
-		gyro->x /= 131;
-		gyro->y /= 131;
-		gyro->z /= 131;
+		gyro->x = x / 131.0;
+		gyro->y = y / 131.0;
+		gyro->z = z / 131.0;
 	}
-	else if(SimpleMPU::MPU6050_GYRO_FS_SEL == 1)
+	else if (SimpleMPU::MPU6050_GYRO_FS_SEL == 1)
 	{
-		gyro->x /= 65.5;
-		gyro->y /= 65.5;
-		gyro->z /= 65.5;
+		gyro->x = x / 65.5;
+		gyro->y = y / 65.5;
+		gyro->z = z / 65.5;
 	}
-	else if(SimpleMPU::MPU6050_GYRO_FS_SEL == 2)
+	else if (SimpleMPU::MPU6050_GYRO_FS_SEL == 2)
 	{
-		gyro->x /= 32.8;
-		gyro->y /= 32.8;
-		gyro->z /= 32.8;
+		gyro->x = x / 32.8;
+		gyro->y = y / 32.8;
+		gyro->z = z / 32.8;
 	}
-	else if(SimpleMPU::MPU6050_GYRO_FS_SEL == 3)
+	else if (SimpleMPU::MPU6050_GYRO_FS_SEL == 3)
 	{
-		gyro->x /= 16.4;
-		gyro->y /= 16.4;
-		gyro->z /= 16.4;
+		gyro->x = x / 16.4;
+		gyro->y = y / 16.4;
+		gyro->z = z / 16.4;
 	}
 }
 
@@ -75,23 +75,27 @@ void SimpleMPU::readGyro(GyroData *gyro)
 void SimpleMPU::calibGyro(int samples)
 {
 	GyroData gyro;
-	int x = 0, y = 0, z = 0;
+	int16_t x, y, z;
+	long int sumx = 0, sumy = 0, sumz = 0;
 	for (int i = 0; i < samples; i++)
 	{
 		Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
 		Wire.write(MPU6050_IMU::MPU6050_RA_GYRO_XOUT_H);
 		Wire.endTransmission(false);
 		Wire.requestFrom(SimpleMPU::MPU6050_ADR, 6, true);
-		x += (Wire.read() << 8 | Wire.read());
-		y += (Wire.read() << 8 | Wire.read());
-		z += (Wire.read() << 8 | Wire.read());
+		x = (Wire.read() << 8 | Wire.read());
+		y = (Wire.read() << 8 | Wire.read());
+		z = (Wire.read() << 8 | Wire.read());
+		sumx += x;
+		sumy += y;
+		sumz += z;
 	}
-	SimpleMPU::MPU6050_GYRO_OFF_X = x / samples;
-	SimpleMPU::MPU6050_GYRO_OFF_Y = y / samples;
-	SimpleMPU::MPU6050_GYRO_OFF_Z = z / samples;
+	SimpleMPU::MPU6050_GYRO_OFF_X = sumx / samples;
+	SimpleMPU::MPU6050_GYRO_OFF_Y = sumy / samples;
+	SimpleMPU::MPU6050_GYRO_OFF_Z = sumz / samples;
 }
 
-// Set scale of gyroscope
+// Set range of gyroscope
 void SimpleMPU::setGyroRange(uint8_t scale)
 {
 	Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
@@ -99,17 +103,19 @@ void SimpleMPU::setGyroRange(uint8_t scale)
 	Wire.endTransmission(false);
 	Wire.requestFrom(SimpleMPU::MPU6050_ADR, 1, true);
 	uint8_t gyro_config = Wire.read();
-	if(scale == 0)
-		gyro_config &= ~((1 << 3)|(1<<4));
-	else if(scale == 1) {
+	if (scale == 0)
+		gyro_config &= ~((1 << 3) | (1 << 4));
+	else if (scale == 1)
+	{
 		gyro_config |= (1 << 3);
 		gyro_config &= ~(1 << 4);
 	}
-	else if(scale == 2) {
+	else if (scale == 2)
+	{
 		gyro_config &= ~(1 << 3);
 		gyro_config |= (1 << 4);
 	}
-	else if(scale == 3)
+	else if (scale == 3)
 		gyro_config |= (1 << 3) | (1 << 4);
 	Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
 	Wire.write(MPU6050_IMU::MPU6050_RA_GYRO_CONFIG);
@@ -128,4 +134,108 @@ uint8_t SimpleMPU::getGyroRange()
 	uint8_t gyro_config = Wire.read() & 0x18;
 	gyro_config >>= 3;
 	return gyro_config;
+}
+
+// Set range of accelerometer
+void SimpleMPU::setAccelRange(uint8_t scale)
+{
+	Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
+	Wire.write(MPU6050_IMU::MPU6050_RA_ACCEL_CONFIG);
+	Wire.endTransmission(false);
+	Wire.requestFrom(SimpleMPU::MPU6050_ADR, 1, true);
+	uint8_t accel_config = Wire.read();
+	if (scale == 0)
+		accel_config &= ~((1 << 3) | (1 << 4));
+	else if (scale == 1)
+	{
+		accel_config |= (1 << 3);
+		accel_config &= ~(1 << 4);
+	}
+	else if (scale == 2)
+	{
+		accel_config &= ~(1 << 3);
+		accel_config |= (1 << 4);
+	}
+	else if (scale == 3)
+		accel_config |= (1 << 3) | (1 << 4);
+	Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
+	Wire.write(MPU6050_IMU::MPU6050_RA_ACCEL_CONFIG);
+	Wire.write(accel_config);
+	Wire.endTransmission(true);
+	SimpleMPU::MPU6050_ACCEL_FS_SEL = scale;
+}
+
+// Get range of accelerometer
+uint8_t SimpleMPU::getAccelRange()
+{
+	Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
+	Wire.write(MPU6050_IMU::MPU6050_RA_ACCEL_CONFIG);
+	Wire.endTransmission(false);
+	Wire.requestFrom(SimpleMPU::MPU6050_ADR, 1, true);
+	uint8_t accel_config = Wire.read() & 0x18;
+	accel_config >>= 3;
+	return accel_config;
+}
+
+// Calibrate gyroscope
+void SimpleMPU::calibAccel(int samples)
+{
+	AccelData accel;
+	int16_t x, y, z;
+	long int sumx = 0, sumy = 0, sumz = 0;
+	for (int i = 0; i < samples; i++)
+	{
+		Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
+		Wire.write(MPU6050_IMU::MPU6050_RA_ACCEL_XOUT_H);
+		Wire.endTransmission(false);
+		Wire.requestFrom(SimpleMPU::MPU6050_ADR, 6, true);
+		x = (Wire.read() << 8 | Wire.read());
+		y = (Wire.read() << 8 | Wire.read());
+		z = (Wire.read() << 8 | Wire.read());
+		sumx += x;
+		sumy += y;
+		sumz += z;
+	}
+	SimpleMPU::MPU6050_ACCEL_OFF_X = sumx / samples;
+	SimpleMPU::MPU6050_ACCEL_OFF_Y = sumy / samples;
+	SimpleMPU::MPU6050_ACCEL_OFF_Z = sumz / samples;
+}
+
+// Read accelerometer values
+void SimpleMPU::readAccel(AccelData *accel)
+{
+	Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
+	Wire.write(MPU6050_IMU::MPU6050_RA_ACCEL_XOUT_H);
+	Wire.endTransmission(false);
+	Wire.requestFrom(SimpleMPU::MPU6050_ADR, 6, true);
+	int16_t x = (Wire.read() << 8 | Wire.read()) - SimpleMPU::MPU6050_ACCEL_OFF_X;
+	int16_t y = (Wire.read() << 8 | Wire.read()) - SimpleMPU::MPU6050_ACCEL_OFF_Y;
+	int16_t z = (Wire.read() << 8 | Wire.read()) - SimpleMPU::MPU6050_ACCEL_OFF_Z;
+	if(SimpleMPU::MPU6050_ACCEL_FS_SEL == 0)
+	{
+		accel->x = x / 16384.0;
+		accel->y = y / 16384.0;
+		accel->z = z / 16384.0;
+	}
+	else if(SimpleMPU::MPU6050_ACCEL_FS_SEL == 1)
+	{
+		accel->x = x / 8192.0;
+		accel->y = y / 8192.0;
+		accel->z = z / 8192.0;
+	}
+	else if(SimpleMPU::MPU6050_ACCEL_FS_SEL == 2)
+	{
+		accel->x = x / 4096.0;
+		accel->y = y / 4096.0;
+		accel->z = z / 4096.0;
+	}
+	else if(SimpleMPU::MPU6050_ACCEL_FS_SEL == 3)
+	{
+		accel->x = x / 2048.0;
+		accel->y = y / 2048.0;
+		accel->z = z / 2048.0;
+	}
+	accel->x = accel->x * 9.81;
+	accel->y = accel->y * 9.81;
+	accel->z = accel->z * 9.81;
 }

@@ -520,26 +520,30 @@ namespace MPU6050_IMU
 
 typedef struct
 {
-	int16_t x;
-	int16_t y;
-	int16_t z;
+	float x;
+	float y;
+	float z;
 } AccelData;
 
 typedef struct
 {
-	int16_t x;
-	int16_t y;
-	int16_t z;
+	float x;
+	float y;
+	float z;
 } GyroData;
 
 class SimpleMPU
 {
 private:
 	uint8_t MPU6050_ADR = MPU6050_IMU::MPU6050_DEFAULT_ADDRESS;
-	uint16_t MPU6050_GYRO_OFF_X = 0;
-	uint16_t MPU6050_GYRO_OFF_Y = 0;
-	uint16_t MPU6050_GYRO_OFF_Z = 0;
+	int16_t MPU6050_GYRO_OFF_X = 0;
+	int16_t MPU6050_GYRO_OFF_Y = 0;
+	int16_t MPU6050_GYRO_OFF_Z = 0;
+	int16_t MPU6050_ACCEL_OFF_X = 0;
+	int16_t MPU6050_ACCEL_OFF_Y = 0;
+	int16_t MPU6050_ACCEL_OFF_Z = 0;
 	uint8_t MPU6050_GYRO_FS_SEL = MPU6050_IMU::MPU6050_GYRO_FS_250;
+	uint8_t MPU6050_ACCEL_FS_SEL = MPU6050_IMU::MPU6050_ACCEL_FS_2;
 public:
 	SimpleMPU(uint8_t address = MPU6050_IMU::MPU6050_DEFAULT_ADDRESS);
 	bool init(bool bypass_check = false);
@@ -547,6 +551,10 @@ public:
 	uint8_t getGyroRange();
 	void calibGyro(int samples = 100);
 	void readGyro(GyroData *gyro);
+	void setAccelRange(uint8_t range = MPU6050_IMU::MPU6050_ACCEL_FS_2);
+	uint8_t getAccelRange();
+	void calibAccel(int samples = 100);
+	void readAccel(AccelData *accel);
 };
 
 #endif
