@@ -1,5 +1,5 @@
 /*
- *  Program to read the temperature sensor on the ATMega328P
+ *  Porting layer for MPU6050 IMU
  *  Original code by Joel Jojo
  *
  *  This is free software. You can redistribute it and/or modify it under
@@ -7,10 +7,10 @@
  *  To view a copy of this license, visit http://opensource.org/licenses/mit-license.php
  */
 
-#ifndef SimpleMPU_h
-#define SimpleMPU_h
+#ifndef SIMPLEIMU_MPU6050_H
+#define SIMPLEIMU_MPU6050_H
 
-#include <Wire.h>
+#include <Arduino.h>
 
 namespace MPU6050_IMU
 {
@@ -518,43 +518,4 @@ namespace MPU6050_IMU
 	const uint8_t MPU6050_DMP_MEMORY_CHUNK_SIZE = 16;
 };
 
-typedef struct
-{
-	float x;
-	float y;
-	float z;
-} AccelData;
-
-typedef struct
-{
-	float x;
-	float y;
-	float z;
-} GyroData;
-
-class SimpleMPU
-{
-private:
-	uint8_t MPU6050_ADR = MPU6050_IMU::MPU6050_DEFAULT_ADDRESS;
-	int16_t MPU6050_GYRO_OFF_X = 0;
-	int16_t MPU6050_GYRO_OFF_Y = 0;
-	int16_t MPU6050_GYRO_OFF_Z = 0;
-	int16_t MPU6050_ACCEL_OFF_X = 0;
-	int16_t MPU6050_ACCEL_OFF_Y = 0;
-	int16_t MPU6050_ACCEL_OFF_Z = 0;
-	uint8_t MPU6050_GYRO_FS_SEL = MPU6050_IMU::MPU6050_GYRO_FS_250;
-	uint8_t MPU6050_ACCEL_FS_SEL = MPU6050_IMU::MPU6050_ACCEL_FS_2;
-public:
-	SimpleMPU(uint8_t address = MPU6050_IMU::MPU6050_DEFAULT_ADDRESS);
-	bool init(bool bypass_check = false);
-	void setGyroRange(uint8_t range = MPU6050_IMU::MPU6050_GYRO_FS_250);
-	uint8_t getGyroRange();
-	void calibGyro(int samples = 100);
-	void readGyro(GyroData *gyro);
-	void setAccelRange(uint8_t range = MPU6050_IMU::MPU6050_ACCEL_FS_2);
-	uint8_t getAccelRange();
-	void calibAccel(int samples = 100);
-	void readAccel(AccelData *accel);
-};
-
-#endif
+#endif /* SIMPLEIMU_MPU6050_H */

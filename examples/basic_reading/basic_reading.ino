@@ -1,13 +1,12 @@
-#include <SimpleMPU.h>
+#include <SimpleIMU.h>
 
-SimpleMPU mpu;
+SimpleIMU mpu(0x68);
 
 void setup()
 {
 	Serial.begin(115200);
 
-	// Initialize the MPU6050 
-	// Use mpu.init(1) if MPU is connected but code says initialization failed
+	// Initialize the MPU6050
 	while (!mpu.init())
 	{
 		Serial.println("MPU initialization failed. Please check your wiring.");
@@ -59,5 +58,5 @@ void loop()
 	Serial.print(accel.z);
 	Serial.println();
 
-	delay(1000);
+	delay(500);
 }

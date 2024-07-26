@@ -1,4 +1,4 @@
-# SimpleMPU
+# SimpleIMU
 
 ![v1.1.0](https://img.shields.io/badge/Version-1.0.0-blue)
 ![Library CI](https://github.com/JoelJojoP/SimpleMPU/actions/workflows/libraryci.yml/badge.svg)

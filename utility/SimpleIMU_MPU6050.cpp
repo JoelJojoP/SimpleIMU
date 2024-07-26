@@ -1,5 +1,5 @@
 /*
- *  Program to read the temperature sensor on the ATMega328P
+ *  Porting layer for MPU6050 IMU
  *  Original code by Joel Jojo
  *
  *  This is free software. You can redistribute it and/or modify it under
@@ -9,61 +9,55 @@
 
 // Importing required libraries
 #include <Arduino.h>
-#include "SimpleMPU.h"
-
-// Constructor
-SimpleMPU::SimpleMPU(uint8_t address)
-{
-	Wire.begin(address);
-	SimpleMPU::MPU6050_ADR = address;
-}
+#include "../SimpleIMU.h"
+#include "SimpleIMU_MPU6050.h"
 
 // Initialize the MPU6050
-bool SimpleMPU::init(bool bypass_check)
+bool SimpleIMU::init()
 {
-	Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
+	Wire.beginTransmission(SimpleIMU::IMU_Addr);
 	Wire.write(MPU6050_IMU::MPU6050_RA_PWR_MGMT_1);
 	Wire.write(0x00);
 	Wire.endTransmission(true);
-	Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
+	Wire.beginTransmission(SimpleIMU::IMU_Addr);
 	Wire.write(MPU6050_IMU::MPU6050_RA_WHO_AM_I);
 	Wire.endTransmission(false);
-	Wire.requestFrom(SimpleMPU::MPU6050_ADR, 1, true);
+	Wire.requestFrom(SimpleIMU::IMU_Addr, 1, true);
 	uint8_t response = Wire.read();
-	if (response != MPU6050_IMU::MPU6050_ADDRESS_AD0_LOW && response != MPU6050_IMU::MPU6050_ADDRESS_AD0_HIGH && bypass_check == false)
+	if (response == 255)
 		return false;
 	return true;
 }
 
 // Read gyroscope values
-void SimpleMPU::readGyro(GyroData *gyro)
+void SimpleIMU::readGyro(GyroData *gyro)
 {
-	Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
+	Wire.beginTransmission(SimpleIMU::IMU_Addr);
 	Wire.write(MPU6050_IMU::MPU6050_RA_GYRO_XOUT_H);
 	Wire.endTransmission(false);
-	Wire.requestFrom(SimpleMPU::MPU6050_ADR, 6, true);
-	int16_t x = (Wire.read() << 8 | Wire.read()) - SimpleMPU::MPU6050_GYRO_OFF_X;
-	int16_t y = (Wire.read() << 8 | Wire.read()) - SimpleMPU::MPU6050_GYRO_OFF_Y;
-	int16_t z = (Wire.read() << 8 | Wire.read()) - SimpleMPU::MPU6050_GYRO_OFF_Z;
-	if (SimpleMPU::MPU6050_GYRO_FS_SEL == 0)
+	Wire.requestFrom(SimpleIMU::IMU_Addr, 6, true);
+	int16_t x = (Wire.read() << 8 | Wire.read()) - SimpleIMU::IMU_GyroOffsetX;
+	int16_t y = (Wire.read() << 8 | Wire.read()) - SimpleIMU::IMU_GyroOffsetY;
+	int16_t z = (Wire.read() << 8 | Wire.read()) - SimpleIMU::IMU_GyroOffsetZ;
+	if (SimpleIMU::IMU_GyroFullScale == MPU6050_IMU::MPU6050_GYRO_FS_250)
 	{
 		gyro->x = x / 131.0;
 		gyro->y = y / 131.0;
 		gyro->z = z / 131.0;
 	}
-	else if (SimpleMPU::MPU6050_GYRO_FS_SEL == 1)
+	else if (SimpleIMU::IMU_GyroFullScale == MPU6050_IMU::MPU6050_GYRO_FS_500)
 	{
 		gyro->x = x / 65.5;
 		gyro->y = y / 65.5;
 		gyro->z = z / 65.5;
 	}
-	else if (SimpleMPU::MPU6050_GYRO_FS_SEL == 2)
+	else if (SimpleIMU::IMU_GyroFullScale == MPU6050_IMU::MPU6050_GYRO_FS_1000)
 	{
 		gyro->x = x / 32.8;
 		gyro->y = y / 32.8;
 		gyro->z = z / 32.8;
 	}
-	else if (SimpleMPU::MPU6050_GYRO_FS_SEL == 3)
+	else if (SimpleIMU::IMU_GyroFullScale == MPU6050_IMU::MPU6050_GYRO_FS_2000)
 	{
 		gyro->x = x / 16.4;
 		gyro->y = y / 16.4;
@@ -72,17 +66,17 @@ void SimpleMPU::readGyro(GyroData *gyro)
 }
 
 // Calibrate gyroscope
-void SimpleMPU::calibGyro(int samples)
+void SimpleIMU::calibGyro(int samples)
 {
 	GyroData gyro;
 	int16_t x, y, z;
 	long int sumx = 0, sumy = 0, sumz = 0;
 	for (int i = 0; i < samples; i++)
 	{
-		Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
+		Wire.beginTransmission(SimpleIMU::IMU_Addr);
 		Wire.write(MPU6050_IMU::MPU6050_RA_GYRO_XOUT_H);
 		Wire.endTransmission(false);
-		Wire.requestFrom(SimpleMPU::MPU6050_ADR, 6, true);
+		Wire.requestFrom(SimpleIMU::IMU_Addr, 6, true);
 		x = (Wire.read() << 8 | Wire.read());
 		y = (Wire.read() << 8 | Wire.read());
 		z = (Wire.read() << 8 | Wire.read());
@@ -90,105 +84,109 @@ void SimpleMPU::calibGyro(int samples)
 		sumy += y;
 		sumz += z;
 	}
-	SimpleMPU::MPU6050_GYRO_OFF_X = sumx / samples;
-	SimpleMPU::MPU6050_GYRO_OFF_Y = sumy / samples;
-	SimpleMPU::MPU6050_GYRO_OFF_Z = sumz / samples;
+	SimpleIMU::IMU_GyroOffsetX = sumx / samples;
+	SimpleIMU::IMU_GyroOffsetY = sumy / samples;
+	SimpleIMU::IMU_GyroOffsetZ = sumz / samples;
 }
 
 // Set range of gyroscope
-void SimpleMPU::setGyroRange(uint8_t scale)
+void SimpleIMU::setGyroRange(uint8_t scale)
 {
-	Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
+	Wire.beginTransmission(SimpleIMU::IMU_Addr);
 	Wire.write(MPU6050_IMU::MPU6050_RA_GYRO_CONFIG);
 	Wire.endTransmission(false);
-	Wire.requestFrom(SimpleMPU::MPU6050_ADR, 1, true);
+	Wire.requestFrom(SimpleIMU::IMU_Addr, 1, true);
 	uint8_t gyro_config = Wire.read();
-	if (scale == 0)
+	if (scale == MPU6050_IMU::MPU6050_GYRO_FS_250)
 		gyro_config &= ~((1 << 3) | (1 << 4));
-	else if (scale == 1)
+	else if (scale == MPU6050_IMU::MPU6050_GYRO_FS_500)
 	{
 		gyro_config |= (1 << 3);
 		gyro_config &= ~(1 << 4);
 	}
-	else if (scale == 2)
+	else if (scale == MPU6050_IMU::MPU6050_GYRO_FS_1000)
 	{
 		gyro_config &= ~(1 << 3);
 		gyro_config |= (1 << 4);
 	}
-	else if (scale == 3)
+	else if (scale == MPU6050_IMU::MPU6050_GYRO_FS_2000)
 		gyro_config |= (1 << 3) | (1 << 4);
-	Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
+	else
+		return;
+	Wire.beginTransmission(SimpleIMU::IMU_Addr);
 	Wire.write(MPU6050_IMU::MPU6050_RA_GYRO_CONFIG);
 	Wire.write(gyro_config);
 	Wire.endTransmission(true);
-	SimpleMPU::MPU6050_GYRO_FS_SEL = scale;
+	SimpleIMU::IMU_GyroFullScale = scale;
 }
 
 // Get range of gyroscope
-uint8_t SimpleMPU::getGyroRange()
+uint8_t SimpleIMU::getGyroRange()
 {
-	Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
+	Wire.beginTransmission(SimpleIMU::IMU_Addr);
 	Wire.write(MPU6050_IMU::MPU6050_RA_GYRO_CONFIG);
 	Wire.endTransmission(false);
-	Wire.requestFrom(SimpleMPU::MPU6050_ADR, 1, true);
+	Wire.requestFrom(SimpleIMU::IMU_Addr, 1, true);
 	uint8_t gyro_config = Wire.read() & 0x18;
 	gyro_config >>= 3;
 	return gyro_config;
 }
 
 // Set range of accelerometer
-void SimpleMPU::setAccelRange(uint8_t scale)
+void SimpleIMU::setAccelRange(uint8_t scale)
 {
-	Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
+	Wire.beginTransmission(SimpleIMU::IMU_Addr);
 	Wire.write(MPU6050_IMU::MPU6050_RA_ACCEL_CONFIG);
 	Wire.endTransmission(false);
-	Wire.requestFrom(SimpleMPU::MPU6050_ADR, 1, true);
+	Wire.requestFrom(SimpleIMU::IMU_Addr, 1, true);
 	uint8_t accel_config = Wire.read();
-	if (scale == 0)
+	if (scale == MPU6050_IMU::MPU6050_ACCEL_FS_2)
 		accel_config &= ~((1 << 3) | (1 << 4));
-	else if (scale == 1)
+	else if (scale == MPU6050_IMU::MPU6050_ACCEL_FS_4)
 	{
 		accel_config |= (1 << 3);
 		accel_config &= ~(1 << 4);
 	}
-	else if (scale == 2)
+	else if (scale == MPU6050_IMU::MPU6050_ACCEL_FS_8)
 	{
 		accel_config &= ~(1 << 3);
 		accel_config |= (1 << 4);
 	}
-	else if (scale == 3)
+	else if (scale == MPU6050_IMU::MPU6050_ACCEL_FS_16)
 		accel_config |= (1 << 3) | (1 << 4);
-	Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
+	else
+		return;
+	Wire.beginTransmission(SimpleIMU::IMU_Addr);
 	Wire.write(MPU6050_IMU::MPU6050_RA_ACCEL_CONFIG);
 	Wire.write(accel_config);
 	Wire.endTransmission(true);
-	SimpleMPU::MPU6050_ACCEL_FS_SEL = scale;
+	SimpleIMU::IMU_AccelFullScale = scale;
 }
 
 // Get range of accelerometer
-uint8_t SimpleMPU::getAccelRange()
+uint8_t SimpleIMU::getAccelRange()
 {
-	Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
+	Wire.beginTransmission(SimpleIMU::IMU_Addr);
 	Wire.write(MPU6050_IMU::MPU6050_RA_ACCEL_CONFIG);
 	Wire.endTransmission(false);
-	Wire.requestFrom(SimpleMPU::MPU6050_ADR, 1, true);
+	Wire.requestFrom(SimpleIMU::IMU_Addr, 1, true);
 	uint8_t accel_config = Wire.read() & 0x18;
 	accel_config >>= 3;
 	return accel_config;
 }
 
 // Calibrate gyroscope
-void SimpleMPU::calibAccel(int samples)
+void SimpleIMU::calibAccel(int samples)
 {
 	AccelData accel;
 	int16_t x, y, z;
 	long int sumx = 0, sumy = 0, sumz = 0;
 	for (int i = 0; i < samples; i++)
 	{
-		Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
+		Wire.beginTransmission(SimpleIMU::IMU_Addr);
 		Wire.write(MPU6050_IMU::MPU6050_RA_ACCEL_XOUT_H);
 		Wire.endTransmission(false);
-		Wire.requestFrom(SimpleMPU::MPU6050_ADR, 6, true);
+		Wire.requestFrom(SimpleIMU::IMU_Addr, 6, true);
 		x = (Wire.read() << 8 | Wire.read());
 		y = (Wire.read() << 8 | Wire.read());
 		z = (Wire.read() << 8 | Wire.read());
@@ -196,40 +194,40 @@ void SimpleMPU::calibAccel(int samples)
 		sumy += y;
 		sumz += z;
 	}
-	SimpleMPU::MPU6050_ACCEL_OFF_X = sumx / samples;
-	SimpleMPU::MPU6050_ACCEL_OFF_Y = sumy / samples;
-	SimpleMPU::MPU6050_ACCEL_OFF_Z = sumz / samples;
+	SimpleIMU::IMU_AccelOffsetX = sumx / samples;
+	SimpleIMU::IMU_AccelOffsetY = sumy / samples;
+	SimpleIMU::IMU_AccelOffsetZ = sumz / samples;
 }
 
 // Read accelerometer values
-void SimpleMPU::readAccel(AccelData *accel)
+void SimpleIMU::readAccel(AccelData *accel)
 {
-	Wire.beginTransmission(SimpleMPU::MPU6050_ADR);
+	Wire.beginTransmission(SimpleIMU::IMU_Addr);
 	Wire.write(MPU6050_IMU::MPU6050_RA_ACCEL_XOUT_H);
 	Wire.endTransmission(false);
-	Wire.requestFrom(SimpleMPU::MPU6050_ADR, 6, true);
-	int16_t x = (Wire.read() << 8 | Wire.read()) - SimpleMPU::MPU6050_ACCEL_OFF_X;
-	int16_t y = (Wire.read() << 8 | Wire.read()) - SimpleMPU::MPU6050_ACCEL_OFF_Y;
-	int16_t z = (Wire.read() << 8 | Wire.read()) - SimpleMPU::MPU6050_ACCEL_OFF_Z;
-	if(SimpleMPU::MPU6050_ACCEL_FS_SEL == 0)
+	Wire.requestFrom(SimpleIMU::IMU_Addr, 6, true);
+	int16_t x = (Wire.read() << 8 | Wire.read()) - SimpleIMU::IMU_AccelOffsetX;
+	int16_t y = (Wire.read() << 8 | Wire.read()) - SimpleIMU::IMU_AccelOffsetY;
+	int16_t z = (Wire.read() << 8 | Wire.read()) - SimpleIMU::IMU_AccelOffsetZ;
+	if (SimpleIMU::IMU_AccelFullScale == MPU6050_IMU::MPU6050_ACCEL_FS_2)
 	{
 		accel->x = x / 16384.0;
 		accel->y = y / 16384.0;
 		accel->z = z / 16384.0;
 	}
-	else if(SimpleMPU::MPU6050_ACCEL_FS_SEL == 1)
+	else if (SimpleIMU::IMU_AccelFullScale ==MPU6050_IMU::MPU6050_ACCEL_FS_4)
 	{
 		accel->x = x / 8192.0;
 		accel->y = y / 8192.0;
 		accel->z = z / 8192.0;
 	}
-	else if(SimpleMPU::MPU6050_ACCEL_FS_SEL == 2)
+	else if (SimpleIMU::IMU_AccelFullScale == MPU6050_IMU::MPU6050_ACCEL_FS_8)
 	{
 		accel->x = x / 4096.0;
 		accel->y = y / 4096.0;
 		accel->z = z / 4096.0;
 	}
-	else if(SimpleMPU::MPU6050_ACCEL_FS_SEL == 3)
+	else if (SimpleIMU::IMU_AccelFullScale == MPU6050_IMU::MPU6050_ACCEL_FS_16)
 	{
 		accel->x = x / 2048.0;
 		accel->y = y / 2048.0;

@@ -2,7 +2,7 @@
 # Datatypes (KEYWORD1)
 #######################################
 
-SimpleMPU	KEYWORD1
+SimpleIMU	KEYWORD1
 GyroData    KEYWORD1
 AccelData   KEYWORD1
 
