@@ -12,20 +12,32 @@
 #include "../SimpleIMU.h"
 #include "SimpleIMU_MPU6050.h"
 
-// Initialize the MPU6050
 bool SimpleIMU::init()
 {
+	/* Disable sleep mode */
 	Wire.beginTransmission(SimpleIMU::IMU_Addr);
 	Wire.write(MPU6050_IMU::MPU6050_RA_PWR_MGMT_1);
 	Wire.write(0x00);
-	Wire.endTransmission(true);
-	Wire.beginTransmission(SimpleIMU::IMU_Addr);
+	Wire.endTransmission(false);
+
+	/* Check whether device is connected */
 	Wire.write(MPU6050_IMU::MPU6050_RA_WHO_AM_I);
 	Wire.endTransmission(false);
 	Wire.requestFrom(SimpleIMU::IMU_Addr, 1, true);
 	uint8_t response = Wire.read();
 	if (response == 255)
 		return false;
+
+	/* Enable DMP */
+	Wire.beginTransmission(SimpleIMU::IMU_Addr);
+	Wire.write(MPU6050_IMU::MPU6050_RA_USER_CTRL);
+	Wire.endTransmission(false);
+	Wire.requestFrom(SimpleIMU::IMU_Addr, 1, false);
+	uint8_t user_ctrl = Wire.read();
+	user_ctrl |= (1 << MPU6050_IMU::MPU6050_USERCTRL_DMP_EN_BIT);
+	Wire.write(MPU6050_IMU::MPU6050_RA_USER_CTRL);
+	Wire.write(user_ctrl);
+	Wire.endTransmission(true);
 	return true;
 }
 
